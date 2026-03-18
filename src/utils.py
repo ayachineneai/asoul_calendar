@@ -1,6 +1,8 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import hashlib
+
+_CST = timezone(timedelta(hours=8))
 
 _DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
@@ -24,4 +26,4 @@ def week_range(day: date) -> tuple[date, date]:
 
 
 def this_week_range() -> tuple[date, date]:
-    return week_range(date.today())
+    return week_range(datetime.now(tz=_CST).date())

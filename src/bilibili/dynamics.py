@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
+
+_CST = timezone(timedelta(hours=8))
 from itertools import chain, takewhile
 from typing import Any, Callable, Iterator, TypeVar
 
@@ -42,7 +44,7 @@ def _dynamics_page_step(api_config: ApiConfig, uid: int) -> Callable[[str], tupl
 
 
 def _pub_date(item: dict[str, Any]) -> date:
-    return date.fromtimestamp(int(item['modules']['module_author']['pub_ts']))
+    return datetime.fromtimestamp(int(item['modules']['module_author']['pub_ts']), tz=_CST).date()
 
 
 def fetch_dynamics_until(api_config: ApiConfig, uid: int, until: date) -> list[dict[str, Any]]:
@@ -69,5 +71,5 @@ def get_reserve_this_week(api_config: ApiConfig, member: Member) -> list[Reserve
     return [
         Reserve(title=item['name'], start_time=start_time, member=member.code)
         for item in items
-        if week_start <= (start_time := datetime.fromtimestamp(item['live_plan_start_time'])).date() <= week_end
+        if week_start <= (start_time := datetime.fromtimestamp(item['live_plan_start_time'], tz=_CST).replace(tzinfo=None)).date() <= week_end
     ]
