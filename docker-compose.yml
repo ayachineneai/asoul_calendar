@@ -1,6 +1,6 @@
 services:
   app:
-    image: asoul-calendar
+    build: .
     restart: always
     ports:
       - "8000:8000"
