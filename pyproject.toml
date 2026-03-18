@@ -1,0 +1,15 @@
+[project]
+name = "asoul-calendar"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "httpx",
+    "anthropic",
+    "icalendar",
+    "python-dotenv",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,13 @@
+services:
+  app:
+    image: asoul-calendar
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - db_data:/data
+
+volumes:
+  db_data:
