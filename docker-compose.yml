@@ -7,7 +7,7 @@ services:
     env_file:
       - .env
     volumes:
-      - db_data:/data
+      - ${DATA_DIR:-/data/asoul}:/data
 
 volumes:
   db_data:
