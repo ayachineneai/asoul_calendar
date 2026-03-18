@@ -1,4 +1,6 @@
 import os
+
+import httpx
 from pathlib import Path
 from threading import Lock
 
@@ -25,7 +27,7 @@ def get_api_config() -> ApiConfig:
                 cookie = get_setting(conn, "bilibili_cookie") or os.environ["BILIBILI_COOKIE"]
             finally:
                 conn.close()
-            _api_config = ApiConfig(cookie=cookie)
+            _api_config = ApiConfig(cookie=cookie, session=httpx.Client(proxy=None))
         return _api_config
 
 
