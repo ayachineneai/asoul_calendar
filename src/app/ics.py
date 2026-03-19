@@ -1,12 +1,9 @@
 from datetime import timedelta
-from zoneinfo import ZoneInfo
 
 from icalendar import Alarm, Calendar, Event, vDatetime, vDuration, vText
 
 from app.types import Live
-from utils import format_datetime, live_slug
-
-_TZ = ZoneInfo("Asia/Shanghai")
+from utils import as_cst, format_datetime, live_slug
 
 
 def _uid(live: Live) -> str:
@@ -14,7 +11,7 @@ def _uid(live: Live) -> str:
 
 
 def _live_to_event(live: Live, reminder_minutes: int, duration_minutes: int) -> Event:
-    start = live.start_time.replace(tzinfo=_TZ)
+    start = as_cst(live.start_time)
     end = start + timedelta(minutes=duration_minutes)
 
     event = Event()

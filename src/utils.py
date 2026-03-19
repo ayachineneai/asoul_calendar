@@ -1,8 +1,9 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import hashlib
 
-_CST = timezone(timedelta(hours=8))
+CST = ZoneInfo("Asia/Shanghai")
 
 _DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
 
@@ -25,9 +26,13 @@ def week_range(day: date) -> tuple[date, date]:
     return monday, sunday
 
 
+def as_cst(dt: datetime) -> datetime:
+    return dt.replace(tzinfo=CST)
+
+
 def from_timestamp(ts: int) -> datetime:
-    return datetime.fromtimestamp(ts, tz=_CST).replace(tzinfo=None)
+    return datetime.fromtimestamp(ts, tz=CST).replace(tzinfo=None)
 
 
 def today() -> date:
-    return datetime.now(tz=_CST).date()
+    return datetime.now(tz=CST).date()
