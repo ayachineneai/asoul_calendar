@@ -10,7 +10,6 @@ from infra.ai import ClaudeConfig, find_schedule_dynamic
 from infra.bilibili.dynamics import get_dynamic_draw_this_week, get_reserve_this_week
 from infra.bilibili.types import ApiConfig
 from infra.db import get_conn
-from server.cache import refresh_lives
 from server.config import AppConfig
 from utils import today
 
@@ -53,7 +52,6 @@ def _try_fetch(api_config: ApiConfig, config: AppConfig) -> None:
         if lives:
             with _write_lock:
                 db.save_lives(conn, lives)
-                refresh_lives(conn, day)
             _logger.info("本周官方日程已入库。")
     finally:
         conn.close()
@@ -67,7 +65,6 @@ def _fetch_reserves(api_config: ApiConfig, config: AppConfig) -> None:
         _logger.info("找到直播：%s", lives)
         with _write_lock:
             db.save_lives(conn, lives)
-            refresh_lives(conn, day)
     finally:
         conn.close()
 

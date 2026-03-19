@@ -13,7 +13,7 @@ from utils import today
 from infra.db import get_conn, get_lives_this_year, insert_live, set_setting, update_live
 from app.ics import generate_ics
 from app.members import ALL as ALL_MEMBERS
-from server.cache import get_lives
+from infra.db import get_lives_this_week
 from server.config import config
 from server.cookie import set_cookie
 
@@ -121,16 +121,21 @@ def _filter_lives_from(
 
 
 @router.get("/lives")
-def get_lives_this_week(
+def get_lives_endpoint(
     members: list[str] = Query(default=[]),
     kind: LiveKind | None = Query(default=None),
     broadcast: list[BroadcastKind] = Query(default=[]),
     tag: list[str] = Query(default=[]),
     slug: list[str] = Query(default=[]),
 ) -> list[dict]:
+    conn = get_conn(config.db_path)
+    try:
+        lives = get_lives_this_week(conn, today())
+    finally:
+        conn.close()
     return [
         {**asdict(live), "start_time": live.start_time.isoformat(), "kind": live.kind.value}
-        for live in _filter_lives_from(get_lives(), members, kind, broadcast, tag, slug)
+        for live in _filter_lives_from(lives, members, kind, broadcast, tag, slug)
     ]
 
 
