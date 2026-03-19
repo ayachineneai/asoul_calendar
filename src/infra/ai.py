@@ -1,10 +1,10 @@
 import json
 from dataclasses import dataclass
 from datetime import date
-
 import anthropic
-
 from app.types import Live, LiveKind
+from infra.bilibili.dynamics import DynamicDraw
+from utils import parse_datetime, week_range
 
 
 @dataclass(frozen=True)
@@ -12,8 +12,26 @@ class ClaudeConfig:
     api_key: str
     model: str
     max_tokens: int
-from infra.bilibili.dynamics import DynamicDraw
-from utils import parse_datetime, week_range
+
+
+class ClaudeClient:
+    def __init__(self, config: ClaudeConfig):
+        self._client = anthropic.Anthropic(api_key=config.api_key)
+        self._model = config.model
+        self._max_tokens = config.max_tokens
+
+    @classmethod
+    def from_config(cls, config: ClaudeConfig) -> "ClaudeClient":
+        return cls(config)
+
+    def complete(self, system: str, messages: list) -> str:
+        response = self._client.messages.create(
+            model=self._model,
+            max_tokens=self._max_tokens,
+            system=system,
+            messages=messages,
+        )
+        return response.content[0].text.strip()
 
 
 _SCHEDULE_CLASSIFIER_SYSTEM = (
@@ -64,26 +82,24 @@ A-SOUL 是一个虚拟偶像团体，现有成员：
 - 直接输出 JSON 数组，第一个字符必须是 `[`，最后一个字符必须是 `]`，不要加 markdown 代码块\
 """
 
-def _find_schedule_index(client: anthropic.Anthropic, claude_config: ClaudeConfig, dynamics: list[DynamicDraw]) -> int:
+
+def _find_schedule_index(client: ClaudeClient, dynamics: list[DynamicDraw]) -> int:
     numbered = "\n\n".join(f"[{i}] {d.text}" for i, d in enumerate(dynamics))
-    response = client.messages.create(
-        model=claude_config.model,
-        max_tokens=claude_config.max_tokens,
-        system=_SCHEDULE_CLASSIFIER_SYSTEM,
-        messages=[anthropic.types.MessageParam(role="user", content=numbered)],
-    )
-    return int(response.content[0].text.strip())
+    try:
+        return int(client.complete(
+            system=_SCHEDULE_CLASSIFIER_SYSTEM,
+            messages=[anthropic.types.MessageParam(role="user", content=numbered)],
+        ))
+    except (ValueError, IndexError):
+        return -1
 
 
-def _parse_schedule(client: anthropic.Anthropic, claude_config: ClaudeConfig, dynamic: DynamicDraw, week_start: date, week_end: date) -> list[Live]:
+def _parse_schedule(client: ClaudeClient, dynamic: DynamicDraw, week_start: date, week_end: date) -> list[Live]:
     image_contents = [
         {"type": "image", "source": {"type": "url", "url": url.replace("http://", "https://", 1)}}
         for url in dynamic.pics
     ]
-
-    response = client.messages.create(
-        model=claude_config.model,
-        max_tokens=claude_config.max_tokens,
+    raw = client.complete(
         system=_SCHEDULE_PARSER_SYSTEM,
         messages=[
             anthropic.types.MessageParam(
@@ -98,8 +114,6 @@ def _parse_schedule(client: anthropic.Anthropic, claude_config: ClaudeConfig, dy
             )
         ],
     )
-
-    raw = response.content[0].text.strip()
     return [
         Live(
             start_time=parse_datetime(item["start_time"]),
@@ -117,11 +131,11 @@ def find_schedule_dynamic(claude_config: ClaudeConfig, dynamics: list[DynamicDra
     if not dynamics:
         return []
 
-    client = anthropic.Anthropic(api_key=claude_config.api_key)
+    client = ClaudeClient.from_config(claude_config)
 
-    index = _find_schedule_index(client, claude_config, dynamics)
+    index = _find_schedule_index(client, dynamics)
     if index < 0:
         return []
 
     candidate = dynamics[index]
-    return _parse_schedule(client, claude_config, candidate, *week_range(day))
+    return _parse_schedule(client, candidate, *week_range(day))
