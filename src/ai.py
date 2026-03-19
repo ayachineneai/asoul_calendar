@@ -1,10 +1,11 @@
 import json
+from datetime import date
 
 import anthropic
 
 from bilibili.types import ClaudeConfig, Live, LiveKind
 from bilibili.dynamics import DynamicDraw
-from utils import parse_datetime, this_week_range
+from utils import parse_datetime, week_range
 
 
 _SCHEDULE_CLASSIFIER_SYSTEM = (
@@ -66,13 +67,11 @@ def _find_schedule_index(client: anthropic.Anthropic, claude_config: ClaudeConfi
     return int(response.content[0].text.strip())
 
 
-def _parse_schedule(client: anthropic.Anthropic, claude_config: ClaudeConfig, dynamic: DynamicDraw) -> list[Live]:
+def _parse_schedule(client: anthropic.Anthropic, claude_config: ClaudeConfig, dynamic: DynamicDraw, week_start: date, week_end: date) -> list[Live]:
     image_contents = [
         {"type": "image", "source": {"type": "url", "url": url.replace("http://", "https://", 1)}}
         for url in dynamic.pics
     ]
-
-    week_start, week_end = this_week_range()
 
     response = client.messages.create(
         model=claude_config.model,
@@ -106,7 +105,7 @@ def _parse_schedule(client: anthropic.Anthropic, claude_config: ClaudeConfig, dy
     ]
 
 
-def find_schedule_dynamic(claude_config: ClaudeConfig, dynamics: list[DynamicDraw]) -> list[Live]:
+def find_schedule_dynamic(claude_config: ClaudeConfig, dynamics: list[DynamicDraw], day: date) -> list[Live]:
     if not dynamics:
         return []
 
@@ -117,4 +116,4 @@ def find_schedule_dynamic(claude_config: ClaudeConfig, dynamics: list[DynamicDra
         return []
 
     candidate = dynamics[index]
-    return _parse_schedule(client, claude_config, candidate)
+    return _parse_schedule(client, claude_config, candidate, *week_range(day))

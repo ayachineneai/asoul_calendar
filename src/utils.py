@@ -25,5 +25,5 @@ def week_range(day: date) -> tuple[date, date]:
     return monday, sunday
 
 
-def this_week_range() -> tuple[date, date]:
-    return week_range(datetime.now(tz=_CST).date())
+def today() -> date:
+    return datetime.now(tz=_CST).date()

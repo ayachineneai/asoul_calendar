@@ -1,9 +1,9 @@
 import json
 import sqlite3
-from datetime import timedelta
+from datetime import date, timedelta
 
 from bilibili.types import Live, LiveKind
-from utils import format_datetime, live_slug, parse_datetime, this_week_range
+from utils import format_datetime, live_slug, parse_datetime, week_range
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS live (
@@ -32,10 +32,11 @@ def init_db(path: str) -> sqlite3.Connection:
 
 def get_lives_this_week(
     conn: sqlite3.Connection,
+    day: date,
     members: list[str] | None = None,
     kind: LiveKind | None = None,
 ) -> list[Live]:
-    week_start, week_end = this_week_range()
+    week_start, week_end = week_range(day)
 
     conditions = ["start_time >= ?", "start_time < ?"]
     params: list = [str(week_start), str(week_end + timedelta(days=1))]
@@ -74,8 +75,8 @@ def get_lives_this_week(
     ]
 
 
-def has_schedule_this_week(conn: sqlite3.Connection) -> bool:
-    week_start, week_end = this_week_range()
+def has_schedule_this_week(conn: sqlite3.Connection, day: date) -> bool:
+    week_start, week_end = week_range(day)
     row = conn.execute(
         "SELECT 1 FROM live WHERE kind = ? AND start_time >= ? AND start_time < ? LIMIT 1",
         (LiveKind.SCHEDULE.value, str(week_start), str(week_end + timedelta(days=1))),

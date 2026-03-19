@@ -7,7 +7,7 @@ from typing import Any, Callable, Iterator, TypeVar
 
 from .api import get_space_dynamics, reservation
 from .types import ApiConfig, Reserve
-from utils import this_week_range
+from utils import week_range
 from members import Member
 
 
@@ -47,26 +47,29 @@ def _pub_date(item: dict[str, Any]) -> date:
     return datetime.fromtimestamp(int(item['modules']['module_author']['pub_ts']), tz=_CST).date()
 
 
-def fetch_dynamics_until(api_config: ApiConfig, uid: int, until: date) -> list[dict[str, Any]]:
+def fetch_dynamics_in_range(api_config: ApiConfig, uid: int, start: date, end: date) -> list[dict[str, Any]]:
     pages: Iterator[list[dict]] = unfoldr(_dynamics_page_step(api_config, uid), "")
     items: Iterator[dict] = chain.from_iterable(pages)
-    return list(takewhile(lambda item: _pub_date(item) >= until, items))
+    return [
+        item for item in takewhile(lambda item: _pub_date(item) >= start, items)
+        if _pub_date(item) <= end
+    ]
 
 
-def fetch_dynamics_this_week(api_config: ApiConfig, uid: int) -> list[dict[str, Any]]:
-    start, _ = this_week_range()
-    return fetch_dynamics_until(api_config, uid, start)
+def fetch_dynamics_this_week(api_config: ApiConfig, uid: int, day: date) -> list[dict[str, Any]]:
+    start, end = week_range(day)
+    return fetch_dynamics_in_range(api_config, uid, start, end)
 
 
-def get_dynamic_draw_this_week(api_config: ApiConfig, uid: int) -> list[DynamicDraw]:
+def get_dynamic_draw_this_week(api_config: ApiConfig, uid: int, day: date) -> list[DynamicDraw]:
     return [
         extract_dynamic_draw(item)
-        for item in fetch_dynamics_this_week(api_config, uid)
+        for item in fetch_dynamics_this_week(api_config, uid, day)
         if item['type'] == 'DYNAMIC_TYPE_DRAW'
     ]
 
-def get_reserve_this_week(api_config: ApiConfig, member: Member) -> list[Reserve]:
-    week_start, week_end = this_week_range()
+def get_reserve_this_week(api_config: ApiConfig, member: Member, day: date) -> list[Reserve]:
+    week_start, week_end = week_range(day)
     items = reservation(api_config, member.uid).get('data') or []
     return [
         Reserve(title=item['name'], start_time=start_time, member=member.code)
