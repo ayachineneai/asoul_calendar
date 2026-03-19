@@ -69,7 +69,7 @@ def _get_code(rsp):
 
 def _headers(api_config: ApiConfig) -> dict:
     return {
-        "Cookie": api_config.cookie,
+        "Cookie": api_config.cookie(),
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
         "Origin": "https://www.bilibili.com",
         "Referer": "https://www.bilibili.com/"

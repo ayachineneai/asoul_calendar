@@ -6,9 +6,12 @@ logging.basicConfig(level=logging.INFO)
 
 from fastapi import FastAPI
 
-from db import init_db
-from server.cache import refresh
+import os
+
+from db import init_db, get_setting
+from server.cache import refresh_lives
 from server.config import DB_PATH, get_claude_config
+from server.cookie import set_cookie
 from server.routes import router
 from server.scheduler import reserves_loop, schedule_loop
 
@@ -17,7 +20,8 @@ from server.scheduler import reserves_loop, schedule_loop
 async def lifespan(_: FastAPI):
     conn = init_db(DB_PATH)
     try:
-        refresh(conn)
+        set_cookie(get_setting(conn, "bilibili_cookie") or os.environ.get("BILIBILI_COOKIE"))
+        refresh_lives(conn)
     finally:
         conn.close()
     claude_config = get_claude_config()

@@ -6,7 +6,7 @@ import db
 from bilibili.types import ClaudeConfig
 from db import init_db
 from schedule import fetch_all_reserves, fetch_official_schedule
-from server.cache import refresh
+from server.cache import refresh_lives
 from server.config import ASOUL_UID, DB_PATH, get_api_config
 
 _INTERVAL = 30 * 60
@@ -23,7 +23,7 @@ def _try_fetch(claude_config: ClaudeConfig) -> None:
         if lives:
             with _write_lock:
                 db.save_lives(conn, lives)
-                refresh(conn)
+                refresh_lives(conn)
             _logger.info("本周官方日程已入库。")
     finally:
         conn.close()
@@ -36,7 +36,7 @@ def _fetch_reserves() -> None:
         _logger.info("找到直播：%s", lives)
         with _write_lock:
             db.save_lives(conn, lives)
-            refresh(conn)
+            refresh_lives(conn)
     finally:
         conn.close()
 

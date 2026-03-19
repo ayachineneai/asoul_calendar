@@ -21,20 +21,9 @@ def get_api_config() -> ApiConfig:
     global _api_config
     with _api_config_lock:
         if _api_config is None:
-            from db import get_setting, init_db
-            conn = init_db(DB_PATH)
-            try:
-                cookie = get_setting(conn, "bilibili_cookie") or os.environ["BILIBILI_COOKIE"]
-            finally:
-                conn.close()
-            _api_config = ApiConfig(cookie=cookie, session=httpx.Client(proxy=None))
+            from server.cookie import get_cookie
+            _api_config = ApiConfig(cookie=get_cookie, session=httpx.Client(proxy=None))
         return _api_config
-
-
-def invalidate_api_config() -> None:
-    global _api_config
-    with _api_config_lock:
-        _api_config = None
 
 
 def get_claude_config() -> ClaudeConfig:

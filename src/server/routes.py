@@ -12,7 +12,8 @@ from db import init_db, set_setting
 from ics import generate_ics
 from members import ALL as ALL_MEMBERS
 from server.cache import get_lives
-from server.config import DB_PATH, invalidate_api_config
+from server.config import DB_PATH
+from server.cookie import set_cookie
 
 _bearer = HTTPBearer()
 _VALID_MEMBER_CODES = {m.code for m in ALL_MEMBERS}
@@ -36,7 +37,7 @@ def update_cookie(
         set_setting(conn, "bilibili_cookie", body.cookie)
     finally:
         conn.close()
-    invalidate_api_config()
+    set_cookie(body.cookie)
     return {"ok": True}
 
 

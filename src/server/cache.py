@@ -10,6 +10,6 @@ def get_lives() -> list[Live]:
     return _lives
 
 
-def refresh(conn: sqlite3.Connection) -> None:
+def refresh_lives(conn: sqlite3.Connection) -> None:
     global _lives
     _lives = db.get_lives_this_week(conn)
