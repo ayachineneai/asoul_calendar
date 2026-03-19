@@ -99,6 +99,13 @@ def get_lives_this_year(conn: sqlite3.Connection, year: int) -> list[Live]:
     ]
 
 
+def delete_lives(conn: sqlite3.Connection, slugs: list[str]) -> int:
+    placeholders = ",".join("?" * len(slugs))
+    cursor = conn.execute(f"DELETE FROM live WHERE slug IN ({placeholders})", slugs)
+    conn.commit()
+    return cursor.rowcount
+
+
 def has_schedule_this_week(conn: sqlite3.Connection, day: date) -> bool:
     week_start, week_end = week_range(day)
     row = conn.execute(

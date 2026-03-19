@@ -10,10 +10,9 @@ from app.types import BroadcastKind, Live, LiveKind
 from datetime import datetime
 from utils import today
 
-from infra.db import get_conn, get_lives_this_year, insert_live, set_setting, update_live
+from infra.db import delete_lives, get_conn, get_lives_this_year, insert_live, set_setting, update_live
 from app.ics import generate_ics
 from app.members import ALL as ALL_MEMBERS
-from infra.db import get_lives_this_week
 from server.config import config
 from server.cookie import set_cookie
 
@@ -56,6 +55,14 @@ def _auth(credentials: HTTPAuthorizationCredentials) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
+@router.get("/admin/verify")
+def verify(
+    credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
+) -> dict:
+    _auth(credentials)
+    return {"ok": True}
+
+
 @router.post("/admin/lives")
 def create_live(
     body: LiveBody,
@@ -69,6 +76,22 @@ def create_live(
     finally:
         conn.close()
     return {"ok": True}
+
+
+@router.delete("/admin/lives")
+def delete_lives_endpoint(
+    slugs: list[str] = Query(default=[]),
+    credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
+) -> dict:
+    _auth(credentials)
+    if not slugs:
+        raise HTTPException(status_code=400, detail="No slugs provided")
+    conn = get_conn(config.db_path)
+    try:
+        deleted = delete_lives(conn, slugs)
+    finally:
+        conn.close()
+    return {"deleted": deleted}
 
 
 @router.patch("/admin/lives/{slug}")
@@ -130,7 +153,7 @@ def get_lives_endpoint(
 ) -> list[dict]:
     conn = get_conn(config.db_path)
     try:
-        lives = get_lives_this_week(conn, today())
+        lives = get_lives_this_year(conn, today().year)
     finally:
         conn.close()
     return [
