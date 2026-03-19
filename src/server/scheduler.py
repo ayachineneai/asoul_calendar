@@ -9,7 +9,7 @@ from app.types import Live, LiveKind, Reserve
 from infra.ai import ClaudeConfig, find_schedule_dynamic
 from infra.bilibili.dynamics import get_dynamic_draw_this_week, get_reserve_this_week
 from infra.bilibili.types import ApiConfig
-from infra.db import init_db
+from infra.db import get_conn
 from server.cache import refresh_lives
 from server.config import AppConfig
 from utils import today
@@ -45,7 +45,7 @@ def _fetch_all_reserves(api_config: ApiConfig, day: date) -> list[Live]:
 
 def _try_fetch(api_config: ApiConfig, config: AppConfig) -> None:
     day = today()
-    conn = init_db(config.db_path)
+    conn = get_conn(config.db_path)
     try:
         if db.has_schedule_this_week(conn, day):
             return
@@ -61,7 +61,7 @@ def _try_fetch(api_config: ApiConfig, config: AppConfig) -> None:
 
 def _fetch_reserves(api_config: ApiConfig, config: AppConfig) -> None:
     day = today()
-    conn = init_db(config.db_path)
+    conn = get_conn(config.db_path)
     try:
         lives = _fetch_all_reserves(api_config, day)
         _logger.info("找到直播：%s", lives)

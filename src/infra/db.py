@@ -24,10 +24,14 @@ CREATE TABLE IF NOT EXISTS settings (
 """
 
 
-def init_db(path: str) -> sqlite3.Connection:
+def init_db(path: str) -> None:
     conn = sqlite3.connect(path)
     conn.executescript(_DDL)
-    return conn
+    conn.close()
+
+
+def get_conn(path: str) -> sqlite3.Connection:
+    return sqlite3.connect(path)
 
 
 def get_lives_this_week(

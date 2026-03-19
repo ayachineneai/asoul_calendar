@@ -8,7 +8,7 @@ import httpx
 from fastapi import FastAPI
 
 from infra.bilibili.types import ApiConfig
-from infra.db import init_db, get_setting
+from infra.db import get_conn, get_setting, init_db
 from server.cache import refresh_lives
 from server.config import config
 from server.cookie import get_cookie, set_cookie
@@ -19,7 +19,8 @@ from utils import today
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    conn = init_db(config.db_path)
+    init_db(config.db_path)
+    conn = get_conn(config.db_path)
     try:
         set_cookie(get_setting(conn, "bilibili_cookie") or config.bilibili_cookie)
         refresh_lives(conn, today())
