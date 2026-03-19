@@ -3,11 +3,11 @@ from datetime import timedelta
 from icalendar import Alarm, Calendar, Event, vDatetime, vDuration, vText
 
 from app.types import Live
-from utils import as_cst, format_datetime, live_slug
+from utils import as_cst
 
 
 def _uid(live: Live) -> str:
-    return live_slug(format_datetime(live.start_time), live.title) + "@asoul-calendar"
+    return live.slug + "@asoul-calendar"
 
 
 def _live_to_event(live: Live, reminder_minutes: int, duration_minutes: int) -> Event:
