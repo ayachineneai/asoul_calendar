@@ -2,7 +2,7 @@ import json
 import sqlite3
 from datetime import date, timedelta
 
-from bilibili.types import Live, LiveKind
+from app.types import Live, LiveKind
 from utils import format_datetime, live_slug, parse_datetime, week_range
 
 _DDL = """

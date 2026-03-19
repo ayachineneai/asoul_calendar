@@ -1,4 +1,3 @@
-import os
 from dataclasses import asdict
 
 import fastapi
@@ -7,12 +6,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
 
-from bilibili.types import BroadcastKind, Live, LiveKind
-from db import init_db, set_setting
-from ics import generate_ics
-from members import ALL as ALL_MEMBERS
+from app.types import BroadcastKind, Live, LiveKind
+from infra.db import init_db, set_setting
+from app.ics import generate_ics
+from app.members import ALL as ALL_MEMBERS
 from server.cache import get_lives
-from server.config import DB_PATH
+from server.config import config
 from server.cookie import set_cookie
 
 _bearer = HTTPBearer()
@@ -30,9 +29,9 @@ def update_cookie(
     body: CookieUpdate,
     credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
 ) -> dict:
-    if credentials.credentials != os.environ["ADMIN_TOKEN"]:
+    if credentials.credentials != config.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    conn = init_db(DB_PATH)
+    conn = init_db(config.db_path)
     try:
         set_setting(conn, "bilibili_cookie", body.cookie)
     finally:

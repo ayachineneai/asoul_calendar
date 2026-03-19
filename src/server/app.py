@@ -4,14 +4,14 @@ from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO)
 
+import httpx
 from fastapi import FastAPI
 
-import os
-
-from db import init_db, get_setting
+from infra.bilibili.types import ApiConfig
+from infra.db import init_db, get_setting
 from server.cache import refresh_lives
-from server.config import DB_PATH, get_claude_config
-from server.cookie import set_cookie
+from server.config import config
+from server.cookie import get_cookie, set_cookie
 from server.routes import router
 from server.scheduler import reserves_loop, schedule_loop
 from utils import today
@@ -19,16 +19,16 @@ from utils import today
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    conn = init_db(DB_PATH)
+    conn = init_db(config.db_path)
     try:
-        set_cookie(get_setting(conn, "bilibili_cookie") or os.environ.get("BILIBILI_COOKIE"))
+        set_cookie(get_setting(conn, "bilibili_cookie") or config.bilibili_cookie)
         refresh_lives(conn, today())
     finally:
         conn.close()
-    claude_config = get_claude_config()
+    api_config = ApiConfig(cookie=get_cookie, session=httpx.Client(proxy=None))
     tasks = [
-        asyncio.create_task(schedule_loop(claude_config)),
-        asyncio.create_task(reserves_loop()),
+        asyncio.create_task(schedule_loop(api_config, config)),
+        asyncio.create_task(reserves_loop(api_config, config)),
     ]
     yield
     for task in tasks:

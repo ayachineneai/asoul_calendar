@@ -1,9 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Callable
-
-import httpx
 
 
 class LiveKind(Enum):
@@ -15,19 +12,6 @@ class BroadcastKind(Enum):
     SOLO = "solo"
     DUO = "duo"
     GROUP = "group"
-
-
-@dataclass(frozen=True)
-class ApiConfig:
-    cookie: Callable[[], str | None] = lambda: None
-    session: httpx.Client = field(default_factory=httpx.Client, hash=False, compare=False)
-
-
-@dataclass(frozen=True)
-class ClaudeConfig:
-    api_key: str
-    model: str
-    max_tokens: int
 
 
 @dataclass(frozen=True)

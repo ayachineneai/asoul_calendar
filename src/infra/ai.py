@@ -1,10 +1,18 @@
 import json
+from dataclasses import dataclass
 from datetime import date
 
 import anthropic
 
-from bilibili.types import ClaudeConfig, Live, LiveKind
-from bilibili.dynamics import DynamicDraw
+from app.types import Live, LiveKind
+
+
+@dataclass(frozen=True)
+class ClaudeConfig:
+    api_key: str
+    model: str
+    max_tokens: int
+from infra.bilibili.dynamics import DynamicDraw
 from utils import parse_datetime, week_range
 
 

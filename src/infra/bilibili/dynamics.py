@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from datetime import date, datetime, timezone, timedelta
-
-_CST = timezone(timedelta(hours=8))
+from datetime import date
 from itertools import chain, takewhile
 from typing import Any, Callable, Iterator, TypeVar
 
 from .api import get_space_dynamics, reservation
-from .types import ApiConfig, Reserve
-from utils import week_range
-from members import Member
+from app.types import Reserve
+from .types import ApiConfig
+from utils import from_timestamp, week_range
+from app.members import Member
 
 
 @dataclass(frozen=True)
@@ -44,7 +43,7 @@ def _dynamics_page_step(api_config: ApiConfig, uid: int) -> Callable[[str], tupl
 
 
 def _pub_date(item: dict[str, Any]) -> date:
-    return datetime.fromtimestamp(int(item['modules']['module_author']['pub_ts']), tz=_CST).date()
+    return from_timestamp(int(item['modules']['module_author']['pub_ts'])).date()
 
 
 def fetch_dynamics_in_range(api_config: ApiConfig, uid: int, start: date, end: date) -> list[dict[str, Any]]:
@@ -74,5 +73,5 @@ def get_reserve_this_week(api_config: ApiConfig, member: Member, day: date) -> l
     return [
         Reserve(title=item['name'], start_time=start_time, member=member.code)
         for item in items
-        if week_start <= (start_time := datetime.fromtimestamp(item['live_plan_start_time'], tz=_CST).replace(tzinfo=None)).date() <= week_end
+        if week_start <= (start_time := from_timestamp(item['live_plan_start_time'])).date() <= week_end
     ]

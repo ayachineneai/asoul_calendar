@@ -1,9 +1,10 @@
 from datetime import date
 
-from bilibili.dynamics import get_dynamic_draw_this_week, get_reserve_this_week
-from bilibili.types import ApiConfig, ClaudeConfig, Live, LiveKind, Reserve
-from ai import find_schedule_dynamic
-from members import ALL, Member
+from infra.bilibili.dynamics import get_dynamic_draw_this_week, get_reserve_this_week
+from app.types import Live, LiveKind, Reserve
+from infra.bilibili.types import ApiConfig
+from infra.ai import ClaudeConfig, find_schedule_dynamic
+from app.members import ALL, Member
 
 
 def _reserve_to_live(reserve: Reserve) -> Live:

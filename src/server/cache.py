@@ -1,8 +1,8 @@
 import sqlite3
 from datetime import date
 
-import db
-from bilibili.types import Live
+import infra.db as db
+from app.types import Live
 
 _lives: list[Live] = []
 

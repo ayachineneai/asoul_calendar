@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 from icalendar import Alarm, Calendar, Event, vDatetime, vDuration, vText
 
-from bilibili.types import Live
+from app.types import Live
 from utils import format_datetime, live_slug
 
 _TZ = ZoneInfo("Asia/Shanghai")
