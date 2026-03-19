@@ -7,7 +7,10 @@ from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel
 
 from app.types import BroadcastKind, Live, LiveKind
-from infra.db import get_conn, set_setting
+from datetime import datetime
+from utils import today
+
+from infra.db import get_conn, get_lives_this_year, insert_live, set_setting, update_live
 from app.ics import generate_ics
 from app.members import ALL as ALL_MEMBERS
 from server.cache import get_lives
@@ -24,19 +27,65 @@ class CookieUpdate(BaseModel):
     cookie: str
 
 
+class LiveBody(BaseModel):
+    start_time: datetime
+    title: str
+    members: list[str]
+    host: str
+    tag: str
+    kind: LiveKind
+
+
 @router.post("/admin/cookie")
 def update_cookie(
     body: CookieUpdate,
     credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
 ) -> dict:
-    if credentials.credentials != config.admin_token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    _auth(credentials)
     conn = get_conn(config.db_path)
     try:
         set_setting(conn, "bilibili_cookie", body.cookie)
     finally:
         conn.close()
     set_cookie(body.cookie)
+    return {"ok": True}
+
+
+def _auth(credentials: HTTPAuthorizationCredentials) -> None:
+    if credentials.credentials != config.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+@router.post("/admin/lives")
+def create_live(
+    body: LiveBody,
+    credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
+) -> dict:
+    _auth(credentials)
+    live = Live(**body.model_dump())
+    conn = get_conn(config.db_path)
+    try:
+        insert_live(conn, live)
+    finally:
+        conn.close()
+    return {"ok": True}
+
+
+@router.patch("/admin/lives/{slug}")
+def patch_live(
+    slug: str,
+    body: LiveBody,
+    credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
+) -> dict:
+    _auth(credentials)
+    live = Live(**body.model_dump())
+    conn = get_conn(config.db_path)
+    try:
+        found = update_live(conn, slug, live)
+    finally:
+        conn.close()
+    if not found:
+        raise HTTPException(status_code=404, detail="Live not found")
     return {"ok": True}
 
 
@@ -49,7 +98,8 @@ def _broadcast_of(live: Live) -> BroadcastKind:
     return BroadcastKind.GROUP
 
 
-def _filter_lives(
+def _filter_lives_from(
+    lives: list[Live],
     members: list[str],
     kind: LiveKind | None,
     broadcast: list[BroadcastKind],
@@ -61,7 +111,7 @@ def _filter_lives(
     tag_set = set(tag)
     slug_set = set(slug)
     return [
-        live for live in get_lives()
+        live for live in lives
         if (not slug_set or live.slug in slug_set)
         and (not member_set or bool(set(live.members) & member_set))
         and (kind is None or live.kind == kind)
@@ -80,7 +130,7 @@ def get_lives_this_week(
 ) -> list[dict]:
     return [
         {**asdict(live), "start_time": live.start_time.isoformat(), "kind": live.kind.value}
-        for live in _filter_lives(members, kind, broadcast, tag, slug)
+        for live in _filter_lives_from(get_lives(), members, kind, broadcast, tag, slug)
     ]
 
 
@@ -122,8 +172,13 @@ def get_calendar(
     reminder: int = Query(default=0, ge=0),
     duration: int = Query(default=120, ge=1),
 ) -> Response:
+    conn = get_conn(config.db_path)
+    try:
+        lives = get_lives_this_year(conn, today().year)
+    finally:
+        conn.close()
     content = generate_ics(
-        _filter_lives(members, kind, broadcast, tag, slug),
+        _filter_lives_from(lives, members, kind, broadcast, tag, slug),
         reminder_minutes=reminder,
         duration_minutes=duration,
     )

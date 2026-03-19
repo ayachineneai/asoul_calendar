@@ -79,6 +79,26 @@ def get_lives_this_week(
     ]
 
 
+def get_lives_this_year(conn: sqlite3.Connection, year: int) -> list[Live]:
+    rows = conn.execute(
+        "SELECT title, host, members, start_time, tag, kind, slug"
+        " FROM live WHERE start_time >= ? AND start_time < ? ORDER BY start_time",
+        (f"{year}-01-01", f"{year + 1}-01-01"),
+    ).fetchall()
+    return [
+        Live(
+            title=row[0],
+            host=row[1],
+            members=json.loads(row[2]),
+            start_time=parse_datetime(row[3]),
+            tag=row[4],
+            kind=LiveKind(row[5]),
+            slug=row[6],
+        )
+        for row in rows
+    ]
+
+
 def has_schedule_this_week(conn: sqlite3.Connection, day: date) -> bool:
     week_start, week_end = week_range(day)
     row = conn.execute(
@@ -96,6 +116,40 @@ def get_setting(conn: sqlite3.Connection, key: str) -> str | None:
 def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
     conn.commit()
+
+
+def insert_live(conn: sqlite3.Connection, live: Live) -> None:
+    conn.execute(
+        "INSERT INTO live (title, host, members, start_time, tag, kind, slug) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            live.title,
+            live.host,
+            json.dumps(live.members, ensure_ascii=False),
+            format_datetime(live.start_time),
+            live.tag,
+            live.kind.value,
+            live_slug(format_datetime(live.start_time), live.title),
+        ),
+    )
+    conn.commit()
+
+
+def update_live(conn: sqlite3.Connection, slug: str, live: Live) -> bool:
+    cursor = conn.execute(
+        "UPDATE live SET title=?, host=?, members=?, start_time=?, tag=?, kind=?, slug=? WHERE slug=?",
+        (
+            live.title,
+            live.host,
+            json.dumps(live.members, ensure_ascii=False),
+            format_datetime(live.start_time),
+            live.tag,
+            live.kind.value,
+            live_slug(format_datetime(live.start_time), live.title),
+            slug,
+        ),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
 
 
 def save_lives(conn: sqlite3.Connection, lives: list[Live]) -> None:
