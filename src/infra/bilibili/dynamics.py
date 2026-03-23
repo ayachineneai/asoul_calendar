@@ -24,13 +24,11 @@ def get_dynamic_draw_this_week(api_config: ApiConfig, uid: int, day: date) -> li
     ]
 
 
-def get_reserve_this_week(api_config: ApiConfig, member: Member, day: date) -> list[Reserve]:
-    week_start, week_end = week_range(day)
+def get_all_reserve(api_config: ApiConfig, member: Member) -> list[Reserve]:
     items = reservation(api_config, member.uid).get('data') or []
     return [
-        Reserve(title=item['name'], start_time=start_time, member=member.code)
+        Reserve(title=item['name'], start_time=from_timestamp(item['live_plan_start_time']), member=member.code)
         for item in items
-        if week_start <= (start_time := from_timestamp(item['live_plan_start_time'])).date() <= week_end
     ]
 
 
