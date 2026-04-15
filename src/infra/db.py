@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS live (
     tag        TEXT    NOT NULL,
     kind       TEXT    NOT NULL,
     slug       TEXT    NOT NULL DEFAULT '',
+    hide       INTEGER NOT NULL DEFAULT 0,
     UNIQUE (start_time, title)
 );
 CREATE TABLE IF NOT EXISTS settings (
@@ -39,11 +40,15 @@ def get_lives_this_week(
     day: date,
     members: list[str] | None = None,
     kind: LiveKind | None = None,
+    show_hidden: bool = False,
 ) -> list[Live]:
     week_start, week_end = week_range(day)
 
     conditions = ["start_time >= ?", "start_time < ?"]
     params: list = [str(week_start), str(week_end + timedelta(days=1))]
+
+    if not show_hidden:
+        conditions.append("hide = 0")
 
     if kind is not None:
         conditions.append("kind = ?")
@@ -54,10 +59,10 @@ def get_lives_this_week(
         conditions.append(f"m.value IN ({placeholders})")
         params.extend(members)
         from_clause = "live, json_each(live.members) m"
-        select = "SELECT DISTINCT title, host, members, start_time, tag, kind, slug"
+        select = "SELECT DISTINCT title, host, members, start_time, tag, kind, slug, hide"
     else:
         from_clause = "live"
-        select = "SELECT DISTINCT title, host, members, start_time, tag, kind, slug"
+        select = "SELECT DISTINCT title, host, members, start_time, tag, kind, slug, hide"
 
     where = " AND ".join(conditions)
     rows = conn.execute(
@@ -74,16 +79,26 @@ def get_lives_this_week(
             tag=row[4],
             kind=LiveKind(row[5]),
             slug=row[6],
+            hide=bool(row[7]),
         )
         for row in rows
     ]
 
 
-def get_lives_this_year(conn: sqlite3.Connection, year: int) -> list[Live]:
+def get_lives_this_year(
+    conn: sqlite3.Connection,
+    year: int,
+    show_hidden: bool = False,
+) -> list[Live]:
+    conditions = ["start_time >= ?", "start_time < ?"]
+    params: list = [f"{year}-01-01", f"{year + 1}-01-01"]
+    if not show_hidden:
+        conditions.append("hide = 0")
+    where = " AND ".join(conditions)
     rows = conn.execute(
-        "SELECT title, host, members, start_time, tag, kind, slug"
-        " FROM live WHERE start_time >= ? AND start_time < ? ORDER BY start_time",
-        (f"{year}-01-01", f"{year + 1}-01-01"),
+        f"SELECT title, host, members, start_time, tag, kind, slug, hide"
+        f" FROM live WHERE {where} ORDER BY start_time",
+        params,
     ).fetchall()
     return [
         Live(
@@ -94,9 +109,16 @@ def get_lives_this_year(conn: sqlite3.Connection, year: int) -> list[Live]:
             tag=row[4],
             kind=LiveKind(row[5]),
             slug=row[6],
+            hide=bool(row[7]),
         )
         for row in rows
     ]
+
+
+def set_live_hide(conn: sqlite3.Connection, slug: str, hide: bool) -> bool:
+    cursor = conn.execute("UPDATE live SET hide = ? WHERE slug = ?", (int(hide), slug))
+    conn.commit()
+    return cursor.rowcount > 0
 
 
 def delete_lives(conn: sqlite3.Connection, slugs: list[str]) -> int:
@@ -127,7 +149,7 @@ def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
 
 def insert_live(conn: sqlite3.Connection, live: Live) -> None:
     conn.execute(
-        "INSERT INTO live (title, host, members, start_time, tag, kind, slug) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO live (title, host, members, start_time, tag, kind, slug, hide) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (
             live.title,
             live.host,
@@ -136,6 +158,7 @@ def insert_live(conn: sqlite3.Connection, live: Live) -> None:
             live.tag,
             live.kind.value,
             live_slug(format_datetime(live.start_time), live.title),
+            int(live.hide),
         ),
     )
     conn.commit()
@@ -143,7 +166,7 @@ def insert_live(conn: sqlite3.Connection, live: Live) -> None:
 
 def update_live(conn: sqlite3.Connection, slug: str, live: Live) -> bool:
     cursor = conn.execute(
-        "UPDATE live SET title=?, host=?, members=?, start_time=?, tag=?, kind=?, slug=? WHERE slug=?",
+        "UPDATE live SET title=?, host=?, members=?, start_time=?, tag=?, kind=?, slug=?, hide=? WHERE slug=?",
         (
             live.title,
             live.host,
@@ -152,6 +175,7 @@ def update_live(conn: sqlite3.Connection, slug: str, live: Live) -> bool:
             live.tag,
             live.kind.value,
             live_slug(format_datetime(live.start_time), live.title),
+            int(live.hide),
             slug,
         ),
     )

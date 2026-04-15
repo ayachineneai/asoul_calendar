@@ -10,7 +10,7 @@ from app.types import BroadcastKind, Live, LiveKind
 from datetime import datetime
 from utils import today
 
-from infra.db import delete_lives, get_conn, get_lives_this_year, insert_live, set_setting, update_live
+from infra.db import delete_lives, get_conn, get_lives_this_year, insert_live, set_live_hide, set_setting, update_live
 from app.ics import generate_ics
 from app.members import ALL as ALL_MEMBERS
 from server.config import config
@@ -33,6 +33,7 @@ class LiveBody(BaseModel):
     host: str
     tag: str
     kind: LiveKind
+    hide: bool = False
 
 
 @router.post("/admin/cookie")
@@ -53,6 +54,10 @@ def update_cookie(
 def _auth(credentials: HTTPAuthorizationCredentials) -> None:
     if credentials.credentials != config.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def _is_authed(credentials: HTTPAuthorizationCredentials | None) -> bool:
+    return credentials is not None and credentials.credentials == config.admin_token
 
 
 @router.get("/admin/verify")
@@ -92,6 +97,23 @@ def delete_lives_endpoint(
     finally:
         conn.close()
     return {"deleted": deleted}
+
+
+@router.patch("/admin/lives/{slug}/hide")
+def set_live_hide_endpoint(
+    slug: str,
+    hide: bool = Query(),
+    credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
+) -> dict:
+    _auth(credentials)
+    conn = get_conn(config.db_path)
+    try:
+        found = set_live_hide(conn, slug, hide)
+    finally:
+        conn.close()
+    if not found:
+        raise HTTPException(status_code=404, detail="Live not found")
+    return {"ok": True}
 
 
 @router.patch("/admin/lives/{slug}")
@@ -150,10 +172,11 @@ def get_lives_endpoint(
     broadcast: list[BroadcastKind] = Query(default=[]),
     tag: list[str] = Query(default=[]),
     slug: list[str] = Query(default=[]),
+    credentials: HTTPAuthorizationCredentials | None = fastapi.Depends(HTTPBearer(auto_error=False)),
 ) -> list[dict]:
     conn = get_conn(config.db_path)
     try:
-        lives = get_lives_this_year(conn, today().year)
+        lives = get_lives_this_year(conn, today().year, show_hidden=_is_authed(credentials))
     finally:
         conn.close()
     return [

@@ -30,3 +30,4 @@ class Live:
     tag: str
     kind: LiveKind
     slug: str = ""
+    hide: bool = False
