@@ -24,6 +24,7 @@ async def lifespan(_: FastAPI):
     finally:
         conn.close()
     api_config = ApiConfig(cookie=get_cookie, session=httpx.Client(proxy=None))
+    app.state.api_config = api_config
     tasks = [
         asyncio.create_task(schedule_loop(api_config, config)),
         asyncio.create_task(reserves_loop(api_config, config)),

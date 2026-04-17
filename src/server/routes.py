@@ -13,6 +13,7 @@ from utils import today
 from infra.db import delete_lives, get_conn, get_lives_this_year, insert_live, set_live_hide, set_setting, update_live
 from app.ics import generate_ics
 from app.members import ALL as ALL_MEMBERS
+from infra.bilibili.dynamics import get_all_reserve
 from server.config import config
 from server.cookie import set_cookie
 
@@ -211,6 +212,19 @@ def subscribe(
     query = "&".join(f"{k}={v}" for k, v in params)
     url = f"{base}?{query}".replace("http://", "webcal://").replace("https://", "webcal://")
     return RedirectResponse(url)
+
+
+@router.get("/admin/reserves")
+def fetch_reserves(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = fastapi.Depends(_bearer),
+) -> list[dict]:
+    _auth(credentials)
+    api_config = request.app.state.api_config
+    reserves = []
+    for member in ALL_MEMBERS:
+        reserves.extend(get_all_reserve(api_config, member))
+    return [{"title": r.title, "start_time": r.start_time.isoformat(), "member": r.member} for r in reserves]
 
 
 @router.get("/calendar.ics")
